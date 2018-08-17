@@ -3,7 +3,7 @@ from win32com.client import Dispatch, constants
 import os
 
 
-def get_yield( filepath = "d:\\kadela\\git\\ATE_SPCC\\sample\\", filename = "YS11-17110027.csv"):
+def get_yield( filepath = "d:\\kadela\\git\\ATE_SPCC\\sample\\", filename = "YS11-17110027.csv",sampling = 0):
 	#filepath = "d:\\kadela\\git\\ATE_SPCC\\sample\\" #區域網路要先設網路磁碟機代號
 	#filename = "YS11-17110027.csv"
 	if os.path.isdir(filepath):
@@ -24,7 +24,8 @@ def get_yield( filepath = "d:\\kadela\\git\\ATE_SPCC\\sample\\", filename = "YS1
 			total = 0
 			good = 0
 			result = []
-			while (xlsSheet.Cells(row,col).Value is not None) and (total < 100):
+			if sampling == 0 : sampling = 999999
+			while (xlsSheet.Cells(row,col).Value is not None) and (total < sampling):
 				result.append(xlsSheet.Cells(row,col).Value)
 				if 'PASS' in result[total]:
 					good += 1

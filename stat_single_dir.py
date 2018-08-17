@@ -11,7 +11,6 @@
 #array_name = [[0 for i in range(m)] for j in range(n)] 建立m*n的二維陣列
 
 import os.path
-import numpy as np
 import stat_single_file as sf
 
 listdir = []
@@ -25,18 +24,17 @@ for i in tmp_list:
 		listdir.append(i)
 	else:
 		listfile.append(i)
-print (listdir,listfile)
+#print (listdir,listfile) #列出所有目錄跟檔名
 
 yield_data = []
 for i in listfile:
-	t = sf.get_yield(filepath = curr_dir, filename = i)
-	print ('---------')
-	print ('lotid:',t[0])
-	print ('total:',t[1])
-	print ('good :',t[2])
+	t = sf.get_yield(filepath = curr_dir, filename = i, sampling = 30)
+	#print ('---------')
+	#print ('lotid:',t[0])
+	#print ('total:',t[1])
+	#print ('good :',t[2])
 	yield_data += [t[0],t[1],t[2]]
 
-print('------')
 print(yield_data)
 
 
