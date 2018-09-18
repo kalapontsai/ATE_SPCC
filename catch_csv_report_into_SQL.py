@@ -150,7 +150,7 @@ if __name__=='__main__':
 			title = get_title(filepath = Path, filename = i)
 			sql = 'INSERT INTO LotTitle (lotdt_idx,lotname,device,tester,'
 			for tmp_title in range(1,76):
-				sql += 'col_' + str(tmp_title) + '_h, col_' + str(tmp_title) + '_l,'
+				sql += 'col_' + str(tmp_title) + '_l, col_' + str(tmp_title) + '_h,'
 			sql = sql[:-1] + ') VALUES ('
 			#input (sql)
 			sql += lot_dt + ", '" + title[0] + "', '" + title[1] + "', " + title[2] + ","
@@ -198,10 +198,11 @@ if __name__=='__main__':
 				w.writerow([sql]) #以list放入,每個字元不會被逗號分開
 				c.execute(sql)
 				conn.commit()
-				
-			while os.path.isfile(save_dir + "\\" + i): #相同檔名在副檔名加字
-				i += ".1"
-			#shutil.move(tmp,save_dir + "\\" + i) #將處理過的檔案歸檔
+			newfile = i	
+			while os.path.isfile(save_dir + "\\" + newfile): #相同檔名在副檔名加字
+				newfile += ".1"
+			tmp = os.path.join(Path,i)
+			shutil.move(tmp,save_dir + "\\" + newfile) #將處理過的檔案歸檔
 	c.close()
 	conn.close()
 	f.close()
