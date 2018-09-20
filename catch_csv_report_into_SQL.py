@@ -24,9 +24,12 @@ def title_filter (string):
 	return t
 
 def get_title(filepath, filename):
+	
 	xlsfile = os.path.join(filepath,filename)
+	print (xlsfile)
 	xlsApp = Dispatch("Excel.Application")
-	xlsApp.Visible = 0                  #顯示 Excel
+	xlsApp.Visible = 1                  #顯示 Excel
+	
 	xlsBook = xlsApp.Workbooks.open(xlsfile)    #開啟一工作簿
 	xlsSheet = xlsBook.Worksheets(os.path.splitext(filename)[0])#分離前檔名及副檔名
 	#找出各欄位的值
@@ -40,6 +43,7 @@ def get_title(filepath, filename):
 	col_high = []
 	pos_x = 3
 	pos_y = 14
+	
 	while pos_x <= 77:
 		s_low = title_filter(str.strip(xlsSheet.Cells(pos_y,pos_x).Value))[0]
 		s_high = title_filter(str.strip(xlsSheet.Cells(pos_y+1,pos_x).Value))[0]
@@ -55,7 +59,7 @@ def get_title(filepath, filename):
 def get_yield( filepath, filename,sampling = 999999):
 	xlsfile = os.path.join(filepath,filename)
 	xlsApp = Dispatch("Excel.Application")
-	xlsApp.Visible = 0                  #顯示 Excel
+	xlsApp.Visible = 1      #顯示 Excel
 	xlsBook = xlsApp.Workbooks.open(xlsfile)    #開啟一工作簿
 	lot_id = os.path.splitext(filename)[0]      #分離前檔名及副檔名
 	xlsSheet = xlsBook.Worksheets(lot_id)  
@@ -65,6 +69,7 @@ def get_yield( filepath, filename,sampling = 999999):
 	y_total = []
 	idx = 0 #筆數
 	answer = ['PASS','ABORT','FAIL']
+
 	while (str.strip(xlsSheet.Cells(row,col).Value) in answer) and (idx < sampling):
 		y_data = []
 		if str.strip(xlsSheet.Cells(row,col).Value) == 'PASS' :  
@@ -77,7 +82,7 @@ def get_yield( filepath, filename,sampling = 999999):
 		while pos_x <= 77 :
 			y_data.append(xlsSheet.Cells(row,pos_x).Value)
 			pos_x += 1
-		#print (y_data)
+		print (y_data)
 		y_total.append(y_data)
 		row += 1
 		idx += 1
@@ -86,7 +91,7 @@ def get_yield( filepath, filename,sampling = 999999):
 	xlsBook.Close()
 	xlsApp.Quit()
 	del xlsApp
-	#print (y_total)
+	print (y_total)
 	return (y_total)
 
 def check_record(lotdt):
@@ -97,7 +102,13 @@ def check_record(lotdt):
 	else:
 		return False
 
-
+def move_file(filepath, filename,save_dir):
+	newfile = filename	
+	while os.path.isfile(filepath + "\\" + newfile): #相同檔名在副檔名加字
+		newfile += ".1"
+	tmp = os.path.join(filepath,filename)
+	shutil.move(tmp,save_dir + "\\" + newfile) #將處理過的檔案歸檔
+	return None
 
 if __name__=='__main__':
 	dt = str(datetime.now().strftime("%Y%m%d%H%M%S"))
@@ -109,15 +120,16 @@ if __name__=='__main__':
 		sql_pre += 'col_' + str(tmp_fieldname) + ','
 	sql_pre = sql_pre[:-1] + ') VALUES '
 
-	#測試資料原始檔根目錄
-	curr_dir = "d:\\temp\\ate\\Dc-DcTestDataRecode\\"
+	#測試資料原始檔根目錄 正式環境為 V:\z_rd_qc_mk\ATE_01\
+	#top_dir = "d:\\temp\\ate\\"
+	top_dir = "V:\\z_rd_qc_mk\\ATE_01\\"
+	curr_dir = top_dir + "Dc-DcTestDataRecode\\"
 	if not os.path.isdir(curr_dir):
 		print ('測試資料目錄不存在 !!')
 		os._exit()
 
 	#測試資料歸檔根目錄
-	save_dir = "d:\\temp\\ate\\Dc-DcTestDataRecode-Save\\"
-	save_dir += dt
+	save_dir = top_dir + "Dc-DcTestDataRecode-Save\\" + dt
 	if not os.path.isdir(save_dir): #檢查儲存目錄是否存在
 		print ('測試資料存檔目錄不存在, 正在新建....')
 		os.mkdir(save_dir)
@@ -136,25 +148,27 @@ if __name__=='__main__':
 				w.writerow([('%s%s ----------檔名不符,不予儲存: ' % (Path,i))])
 				print ('=================================')
 				print ('%s%s ----------檔名不符,不予儲存: ' % (Path,i))
+				move_file(Path,i,save_dir)
 				continue
 			if check_record(lot_dt):
 				w.writerow([('%s%s ----------檔案重複,不予儲存: ' % (Path,i))])
 				print ('=================================')
 				print ('%s%s ----------檔案重複,不予儲存: ' % (Path,i))
+				move_file(Path,i,save_dir)
 				continue
 			print ('=================================')
 			print ('路徑: %s' % (Path))
 			print ('檔案: %s' % (i))
 			w.writerow(['讀取:%s%s...' % (Path,i)])
-
+			
 			title = get_title(filepath = Path, filename = i)
+			
 			sql = 'INSERT INTO LotTitle (lotdt_idx,lotname,device,tester,'
 			for tmp_title in range(1,76):
 				sql += 'col_' + str(tmp_title) + '_l, col_' + str(tmp_title) + '_h,'
 			sql = sql[:-1] + ') VALUES ('
-			#input (sql)
+			
 			sql += lot_dt + ", '" + title[0] + "', '" + title[1] + "', " + title[2] + ","
-			#input (sql)
 			for tmpStd in range(len(title[3])):
 				sql += title[3][tmpStd] + ',' + title[4][tmpStd] + ','
 			sql = sql[:-1] + ')'
@@ -173,7 +187,7 @@ if __name__=='__main__':
 				loop = int(yield_acc / batch) + 1
 			else:
 				loop = int(yield_acc / batch)
-			print ('total %s / loop:%s / 餘數:%s' % (yield_acc,loop,loop_mod))
+			print ('總筆數: %s / loop: %s / 餘數: %s' % (yield_acc,loop,loop_mod))
 			#紀錄目前的位置
 			pos = 0
 			#每批次的終點
@@ -198,11 +212,7 @@ if __name__=='__main__':
 				w.writerow([sql]) #以list放入,每個字元不會被逗號分開
 				c.execute(sql)
 				conn.commit()
-			newfile = i	
-			while os.path.isfile(save_dir + "\\" + newfile): #相同檔名在副檔名加字
-				newfile += ".1"
-			tmp = os.path.join(Path,i)
-			shutil.move(tmp,save_dir + "\\" + newfile) #將處理過的檔案歸檔
+			move_file(Path,i,save_dir)
 	c.close()
 	conn.close()
 	f.close()
