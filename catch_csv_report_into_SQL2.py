@@ -4,6 +4,7 @@
 #後以批次讀取各測項讀值,共75項
 #再寫入MS-SQL的資料庫,以及log紀錄
 #處理過的檔案進行歸檔,原目錄清空
+# 20180926 : rev2 以csv module讀取,取代win32com
 
 import os,time
 import re
@@ -25,77 +26,64 @@ def title_filter (string):
 
 def get_title(filepath, filename):
 	try:
-		xlsfile = os.path.join(filepath,filename)
-		print (xlsfile)
-		xlsApp = Dispatch("Excel.Application")
-		xlsApp.Visible = 0                  #顯示 Excel
-		
-		xlsBook = xlsApp.Workbooks.open(xlsfile)    #開啟一工作簿
-		xlsSheet = xlsBook.Worksheets(os.path.splitext(filename)[0])#分離前檔名及副檔名
-		#找出各欄位的值
-		lotname = str.strip(xlsSheet.Cells(5,1).Value)[4:]
-		device = str.strip(xlsSheet.Cells(2,1).Value)[41:]
-		#test_date = str.strip(xlsSheet.Cells(12,1).Value)[5:] #實際儲存值抓檔案最後時間 變數:f_time
-		tester = '1'
-		#print ('lotname: %s / device: %s / tester: %s' % (lotname,device,tester))
-		#input ('抓取上下限')
+		f = os.path.join(filepath,filename)
+		csvfile = open(f, newline='')
+		rows = csv.reader(csvfile)
+
+		# 以迴圈輸出每一列
+		tmp = []
+		for row in rows:
+			tmp.append(row)
+		csvfile.close()
+		lotname = tmp[4][0][4:]
+		device = tmp[1][0][41:]
+		tester = tmp[2][0][7:8]
 		col_low = []
 		col_high = []
-		pos_x = 3
-		pos_y = 14
-		
-		while pos_x <= 77:
-			s_low = title_filter(str.strip(xlsSheet.Cells(pos_y,pos_x).Value))[0]
-			s_high = title_filter(str.strip(xlsSheet.Cells(pos_y+1,pos_x).Value))[0]
-			col_low.append(s_low)
-			col_high.append(s_high)
+		pos_x = 2
+		pos_y = 13
+
+		while pos_x <= 76:
+			s_low = title_filter(str.strip(tmp[pos_y][pos_x]))
+			s_high = title_filter(str.strip(tmp[pos_y+1][pos_x]))
+
+			col_low.append(s_low[0])
+			col_high.append(s_high[0])
 			pos_x += 1
-		xlsBook.Close()
-		xlsApp.Quit()
-		del xlsApp
 		return (lotname,device,tester,col_low,col_high)
 	except:
 		print ('Title讀取發生異常 !! 跳過這個檔案.....')
 		return ('err')
 
 
-def get_yield( filepath, filename,sampling = 999999):
-	xlsfile = os.path.join(filepath,filename)
-	xlsApp = Dispatch("Excel.Application")
-	xlsApp.Visible = 0      #顯示 Excel
-	xlsBook = xlsApp.Workbooks.open(xlsfile)    #開啟一工作簿
-	lot_id = os.path.splitext(filename)[0]      #分離前檔名及副檔名
-	xlsSheet = xlsBook.Worksheets(lot_id)  
-	row = 16   #列
-	col = 2 #欄
-	#y_total 內 y_data為單筆list
-	y_total = []
-	idx = 0 #筆數
-	answer = ['PASS','ABORT','FAIL']
-
-	while (str.strip(xlsSheet.Cells(row,col).Value) in answer) and (idx < sampling):
-		y_data = []
-		if str.strip(xlsSheet.Cells(row,col).Value) == 'PASS' :  
-			y_data.append('1')
-		elif str.strip(xlsSheet.Cells(row,col).Value) == 'ABORT' :
-			y_data.append('2')
-		else :
-			y_data.append('3')
-		pos_x = 3
-		while pos_x <= 77 :
-			y_data.append(xlsSheet.Cells(row,pos_x).Value)
-			pos_x += 1
-		print (y_data)
-		y_total.append(y_data)
-		row += 1
-		idx += 1
-		if type(xlsSheet.Cells(row,3).Value) == type(None):
-			break  # 偵測下一個若是空白則結束
-	xlsBook.Close()
-	xlsApp.Quit()
-	del xlsApp
-	print (y_total)
-	return (y_total)
+def get_yield( filepath, filename):
+	try:
+		f = os.path.join(filepath,filename)
+		csvfile = open(f, newline='')
+		rows = csv.reader(csvfile)
+		tmp = []
+		for row in rows:
+			tmp.append(row)
+		csvfile.close()
+		y_total = []
+		for pos_y in range(15,len(tmp)):
+			y_data = []
+			if str.strip(tmp[pos_y][1]) == 'PASS' : 
+				y_data.append('1')
+			elif str.strip(tmp[pos_y][1]) == 'ABORT' :
+				y_data.append('2')
+			elif str.strip(tmp[pos_y][1]) == 'FAIL' :
+				y_data.append('3')
+			else:
+				print ('PASS/FAIL Reading error ...')
+				return ('err')
+			for i in range(2,77):
+				y_data.append(str.strip(tmp[pos_y][i]))
+			y_total.append(y_data)
+		return (y_total)
+	except:
+		print ('數值讀取發生異常 !! 跳過這個檔案.....')
+		return ('err')
 
 def check_record(lotdt):
 	qry = 'SELECT TOP (1) lotdt_idx FROM LotTitle WHERE lotdt_idx = ' + lotdt
@@ -124,8 +112,8 @@ if __name__=='__main__':
 	sql_pre = sql_pre[:-1] + ') VALUES '
 
 	#測試資料原始檔根目錄 正式環境為 V:\z_rd_qc_mk\ATE_01\
-	#top_dir = "d:\\temp\\ate\\"
-	top_dir = "V:\\z_rd_qc_mk\\ATE_01\\"
+	top_dir = "d:\\temp\\ate\\"
+	#top_dir = "V:\\z_rd_qc_mk\\ATE_01\\"
 	curr_dir = top_dir + "Dc-DcTestDataRecode\\"
 	if not os.path.isdir(curr_dir):
 		print ('測試資料目錄不存在 !!')
@@ -138,8 +126,8 @@ if __name__=='__main__':
 		os.mkdir(save_dir)
 
 	log_file = save_dir + "\\atelog-" + dt + ".csv"
-	f = open(log_file, 'w', newline='')
-	w = csv.writer(f)
+	f_log = open(log_file, 'w', newline='')
+	w = csv.writer(f_log)
 
 	for Path, Folder, FileName in os.walk(curr_dir):
 		for i in FileName:
@@ -164,8 +152,9 @@ if __name__=='__main__':
 			w.writerow(['讀取:%s%s...' % (Path,i)])
 			
 			title = get_title(filepath = Path, filename = i)
-			if title == 'err' :
+			if title == 'err' or title[0][:2] != "YS" :
 				w.writerow(['處理異常: %s%s...' % (Path,i)])
+				print ('處理異常: %s%s...' % (Path,i))
 				continue
 			sql = 'INSERT INTO LotTitle (lotdt_idx,lotname,device,tester,'
 			for tmp_title in range(1,76):
@@ -181,7 +170,11 @@ if __name__=='__main__':
 			conn.commit()
 			
 			#抓量測數據
-			yield_data = get_yield(filepath = Path, filename = i, sampling = 999999)
+			yield_data = get_yield(filepath = Path, filename = i)
+			if yield_data == 'err' :
+				w.writerow(['處理異常: %s%s...' % (Path,i)])
+				continue
+			print (yield_data)
 			#SQL限制最大筆數1000
 			batch = 100
 			yield_acc = int(len(yield_data))
@@ -207,7 +200,7 @@ if __name__=='__main__':
 				sql = ""
 				for tmp_data1 in range(pos, batch_end):
 					sql += '(' + lot_dt + ','
-					for tmp_data2 in range(len(yield_data[0])):
+					for tmp_data2 in range(0,76):
 						sql += str(yield_data[tmp_data1][tmp_data2]) + ','
 					sql = sql[:-1] + '),'
 					pos += 1
@@ -219,7 +212,7 @@ if __name__=='__main__':
 			move_file(Path,i,save_dir)
 	c.close()
 	conn.close()
-	f.close()
+	f_log.close()
 	
 
 

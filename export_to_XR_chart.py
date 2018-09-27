@@ -15,7 +15,7 @@ if __name__=='__main__':
 			print ('參數非正確路徑 !! 預定為 D:\\temp\\ate\\spcc\\')
 			spcc_dir = "d:\\temp\\ate\\spcc\\"
 		else :
-			if sys.argv[1][:-1] != '\\' :
+			if sys.argv[1][-1:] != '\\' :
 				spcc_dir = sys.argv[1] + '\\'
 			else :
 				spcc_dir = sys.argv[1]
@@ -32,22 +32,28 @@ if __name__=='__main__':
 	csvCursor = csv.reader(csvfile, delimiter=':')
 	device = []
 	test_item = []
+	tmp = []
 	for row in csvCursor:
-		if any(row):  #過濾空行 避免錯誤訊息 IndexError: list index out of range
+		if any(row):
+			tmp.append(row)
+	csvfile.close()
+	for row in tmp:
 			if row[0] == 'server' : server = row[1]
 			if row[0] == 'database' : database = row[1]
 			if row[0] == 'uid' : uid = row[1]
 			if row[0] == 'pwd' : pwd = row[1]
-			if row[0] == 'device' :device.append(row[1])
+			if row[0] == 'device' : 
+				print ('指定機種名稱 : %s' % row[1])
+				device.append(row[1])
 			if row[0] == 'test_item' :
 				item = str.split(row[1],',')
-				#print ('test_item: %s' % item)
+				print ('測項編號 : %s' % item)
 				for i in item:
 					test_item.append(int(i))
 	if test_item == []:
 		print ('未指定測項,預設為[空載輸入電流_L]')
 		test_item.append(0)
-	csvfile.close()
+	
 
 	dt = str(datetime.now().strftime("%Y%m%d%H%M%S"))
 	if server and database and uid and pwd :
@@ -93,8 +99,8 @@ if __name__=='__main__':
 		
 		#取產品最後一個檔案的上下限
 		t_std = []
-		qry = "SELECT TOP(1) * FROM LotTitle WHERE device = '" + tmp_device[0] + "' ORDER BY lotdt_idx DESC"
-		#print (qry)
+		qry = "SELECT TOP(1) * FROM LotTitle WHERE device = '" + tmp_device + "' ORDER BY lotdt_idx DESC"
+		print (qry)
 		c.execute(qry)
 		row = c.fetchone()
 		for tmp_std in row:
@@ -123,7 +129,7 @@ if __name__=='__main__':
 			
 			#取得每個產品,測試時間最後25批的lotdt_idx
 			lotidx = []
-			qry = "SELECT TOP(25) lotdt_idx FROM LotTitle WHERE device = '" + tmp_device[0] + "' ORDER BY lotdt_idx DESC"
+			qry = "SELECT TOP(25) lotdt_idx FROM LotTitle WHERE device = '" + tmp_device + "' ORDER BY lotdt_idx DESC"
 			c.execute(qry)
 			row = c.fetchone()
 			while row:
@@ -150,7 +156,7 @@ if __name__=='__main__':
 			xlsBook = xlsApp.Workbooks.open(xlsfile)    #開啟一工作簿
 			xlsSheet = xlsBook.Worksheets('X-R')
 
-			xlsSheet.Cells(3,3).Value = str(tmp_device[0]) #device
+			xlsSheet.Cells(3,3).Value = str(tmp_device) #device
 			xlsSheet.Cells(5,3).Value = title[0]   #_test item
 			xlsSheet.Cells(6,3).Value = title[1]   #_unit
 			xlsSheet.Cells(4,11).Value = title[2]  #usl
@@ -167,13 +173,14 @@ if __name__=='__main__':
 					xlsSheet.Cells(y,x).Value = test_data[test_data_idx]
 					test_data_idx += 1
 
-			dt_xls = title[6].replace("/","")
-			xls_saveas = 'XR-' + str(tmp_device[0]) + '-' + title[0] + '-' + dt_xls + '.xlsx'
+			#dt_xls = title[6].replace("/","") #改為報告產生日期
+			xls_saveas = str(tmp_device) + '-' + '平均全距圖'+ '-' + title[0] + '-' + dt + '.xlsx'
 			xls_saveas = os.path.join(spcc_dir,xls_saveas)
-			xlsSheet.SaveAs(xls_saveas)
-			xlsBook.Close()
 			print ('儲存 %s .....' % (xls_saveas))
 			print ('- - - - - - - - - - - - - - - - - - -')
+			xlsSheet.SaveAs(xls_saveas)
+			xlsBook.Close()
+			
 
 	xlsApp.Quit()
 	del xlsApp
