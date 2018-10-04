@@ -184,12 +184,3 @@ if __name__=='__main__':
 
 	xlsApp.Quit()
 	del xlsApp
-			
-
-
-
-
-
-
-
-

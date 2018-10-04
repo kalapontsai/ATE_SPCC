@@ -1,4 +1,4 @@
-## ATE_SPCC 2018/9/18 ##
+## ATE_SPCC 2018/10/04 ##
 *	catch_csv_report_into_SQL.py :
 	> ATE tester will create a result file as csv format
 	> use Python.win32 to catch the following data : 
@@ -19,5 +19,8 @@
 
 *	catch_csv_report_into_sqlite3.py :
 	> phase out due to new file:catch_csv_report_into_SQL.py
+
+*	ate_spcc_qt5.py :
+	> use PYQT5 to create user UI instead of open .ini file for parameter setting
 
 

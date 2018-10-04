@@ -15,6 +15,7 @@ import csv
 import shutil #檔案處理套件
 
 def title_filter (string):
+	# can try "\d+\.?\d*|\-\d+\.?\d*"
 	if re.findall(r"\-\d+\.?\d*",string) == [] :
 		t = re.findall(r"\d+\.?\d*",string)
 	else :
