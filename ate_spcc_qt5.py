@@ -15,6 +15,7 @@ class Export():
 	
 	def output(Path,tmp_xls,device,testitem):
 		if len(Path) > 1 :
+			Path.replace ('/','\\')
 			if Path[-1:] != '\\' :
 				savepath = Path + '\\'
 			else :
@@ -22,7 +23,7 @@ class Export():
 		else :
 			print ('參數未設路徑 !! 預定為' + self.cwd)
 			savepath = self.cwd
-
+		tmp_xls.replace ('/','\\')
 		dt = str(datetime.now().strftime("%Y%m%d%H%M%S"))
 		conn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER=192.168.1.4;DATABASE=ate;UID=sa;PWD=yds6f')
 		c = conn.cursor()
@@ -107,11 +108,15 @@ class Export():
 		print ('%s 共有 %s 批 %s 筆' % (device, len(lotidx), len(test_data)))
 		MainWindow.statusBar().showMessage('%s 共有 %s 批 %s 筆' % (device, len(lotidx), len(test_data)))
 		try:
-			xlsBook = xlsApp.Workbooks.open(tmp_xls)    #開啟一工作簿
+			xlsBook = xlsApp.Workbooks.open(tmp_xls)
+			xlsSheet = xlsBook.Worksheets('X-R')    #開啟一工作簿
 		except:
 			print ('範本讀取發生異常 !!')
+			xlsApp.Quit()
+			del xlsApp
+			conn.close()
 			return ('template error')
-		xlsSheet = xlsBook.Worksheets('X-R')
+		
 
 		xlsSheet.Cells(3,3).Value = str(device) #device
 		xlsSheet.Cells(5,3).Value = title[0]   #_test item
@@ -131,12 +136,19 @@ class Export():
 				test_data_idx += 1
 
 		#dt_xls = title[6].replace("/","") #改為報告產生日期
-		xls_saveas = str(device) + '-' + '平均全距圖'+ '-' + title[0] + '-' + dt + '.xlsx'
-		xls_saveas = os.path.join(Path,xls_saveas)
-		print ('儲存 %s .....' % (xls_saveas))
-		MainWindow.statusBar().showMessage('儲存 %s .....' % (xls_saveas))
-		xlsSheet.SaveAs(xls_saveas)
-		xlsBook.Close()
+		try:
+			xls_saveas = str(device) + '-' + '平均全距圖'+ '-' + title[0] + '-' + dt + '.xlsx'
+			xls_saveas = os.path.join(Path,xls_saveas)
+			print ('儲存 %s .....' % (xls_saveas))
+			MainWindow.statusBar().showMessage('儲存 %s .....' % (xls_saveas))
+			xlsSheet.SaveAs(xls_saveas)
+			xlsBook.Close()
+		except:
+			print ('檔案儲存異常 !!')
+			xlsApp.Quit()
+			del xlsApp
+			conn.close()
+			return ('save error')
 
 		xlsApp.Quit()
 		del xlsApp
@@ -174,7 +186,7 @@ class MainWindow(QMainWindow):
 			path = QFileDialog.getExistingDirectory(self,"選取資料夾",self.cwd)
 			#path = QFileDialog.getOpenFileName(self,"Open File Dialog","/","Excel files(*.xlsx)")
 		if path != '' :
-			self.lineedit_path.setText(str(path))
+			self.lineedit_path.setText(str(path.replace('/','\\')))
 		print(path)
 
 	def click_change_temp_path(self,Path):
@@ -184,7 +196,7 @@ class MainWindow(QMainWindow):
 		else:
 			path = QFileDialog.getOpenFileName(self,"選取範本檔",self.cwd,"Excel files(*.xlsx)")
 		if path[0] != '' :
-			self.lineedit_temp_path.setText(str(path[0]))
+			self.lineedit_temp_path.setText(str(path[0].replace('/','\\')))
 		print(path)
 
 
@@ -212,6 +224,8 @@ class MainWindow(QMainWindow):
 					self.statusBar().showMessage('存檔路徑發生問題, 轉換中止 !!')
 				elif result == 'template error':
 					self.statusBar().showMessage('範本讀取發生問題, 轉換中止 !!')
+				elif result == 'save error':
+					self.statusBar().showMessage('報告儲存發生問題 !!')
 			else:
 				print ('click_go : No')
 				self.statusBar().showMessage('Ready')
