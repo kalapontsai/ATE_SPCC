@@ -6,13 +6,14 @@
 #處理過的檔案進行歸檔,原目錄清空
 # 20180926 : rev2 以csv module讀取,取代win32com
 
-import os,time
+import os,sys,time
 import re
 import pyodbc
 from datetime import datetime, timezone
 from win32com.client import Dispatch, constants
 import csv
 import shutil #檔案處理套件
+import ateconfig_default
 
 def title_filter (string):
 	# can try "\d+\.?\d*|\-\d+\.?\d*"
@@ -103,9 +104,23 @@ def move_file(filepath, filename,save_dir):
 	return None
 
 if __name__=='__main__':
+	configs = ateconfig_default.configs
+	try:
+		driver = configs['db']['driver']
+		host = configs['db']['host']
+		user = configs['db']['user']
+		password = configs['db']['password']
+		db = configs['db']['database']
+		top_dir = configs['catch']['root_path']
+	except:
+		print ('*******************************')
+		print ('** 參數檔讀取失敗,中止程式!! **')
+		print ('*******************************')
+		time.sleep(5)
+		sys.exit()
 	dt = str(datetime.now().strftime("%Y%m%d%H%M%S"))
 	#連接資料庫
-	conn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER=192.168.1.4;DATABASE=ate;UID=sa;PWD=yds6f')
+	conn = pyodbc.connect('DRIVER='+driver+';SERVER='+host+';DATABASE='+db+';UID='+user+';PWD='+password)
 	c = conn.cursor()
 	sql_pre = 'INSERT INTO TestData (lotdt_idx,t_result,'
 	for tmp_fieldname in range(1,76):
@@ -113,11 +128,13 @@ if __name__=='__main__':
 	sql_pre = sql_pre[:-1] + ') VALUES '
 
 	#測試資料原始檔根目錄 正式環境為 V:\z_rd_qc_mk\ATE_01\
-	top_dir = "d:\\temp\\ate\\"
-	#top_dir = "V:\\z_rd_qc_mk\\ATE_01\\"
+	if top_dir[-1:] != '\\' :
+		top_dir += '\\'
+
 	curr_dir = top_dir + "Dc-DcTestDataRecode\\"
 	if not os.path.isdir(curr_dir):
 		print ('測試資料目錄不存在 !!')
+		time.sleep(5)
 		os._exit()
 
 	#測試資料歸檔根目錄
@@ -127,11 +144,12 @@ if __name__=='__main__':
 		os.mkdir(save_dir)
 
 	log_file = save_dir + "\\atelog-" + dt + ".csv"
-	f_log = open(log_file, 'w', newline='')
+	f_log = open(log_file, 'w', newline='', encoding='utf-8')
 	w = csv.writer(f_log)
-
+	qty = 0 #計算處理數量
 	for Path, Folder, FileName in os.walk(curr_dir):
 		for i in FileName:
+			qty += 1
 			m_time = os.path.getmtime(os.path.join(Path,i))
 			f_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(m_time))
 			lot_dt = str(time.strftime("%Y%m%d%H%M%S", time.localtime(m_time)))
@@ -211,9 +229,12 @@ if __name__=='__main__':
 				c.execute(sql)
 				conn.commit()
 			move_file(Path,i,save_dir)
+	
+	print ('-----------------')
+	print ('處理檔案數量: %s' % (qty))
+	print ('三秒後關閉.....')
+	w.writerow(['處理檔案數量:'+str(qty)])
 	c.close()
 	conn.close()
 	f_log.close()
-	
-
-
+	time.sleep(3)

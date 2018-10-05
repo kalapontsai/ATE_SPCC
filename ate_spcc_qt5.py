@@ -7,6 +7,7 @@ import shutil #檔案處理套件
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QDesktopWidget, QAction, qApp,\
  QLabel, QHBoxLayout, QLineEdit, QPushButton, QFormLayout, QDialog, QFileDialog, QComboBox, QMessageBox
 from PyQt5.QtGui import QIcon, QFont
+import ateconfig_default
 
 class Export():
 	def __init__(self):
@@ -25,7 +26,7 @@ class Export():
 			savepath = self.cwd
 		tmp_xls.replace ('/','\\')
 		dt = str(datetime.now().strftime("%Y%m%d%H%M%S"))
-		conn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER=192.168.1.4;DATABASE=ate;UID=sa;PWD=yds6f')
+		conn = pyodbc.connect('DRIVER='+driver+';SERVER='+host+';DATABASE='+db+';UID='+user+';PWD='+password)
 		c = conn.cursor()
 
 		xlsApp = Dispatch("Excel.Application")
@@ -158,8 +159,11 @@ class Export():
 class MainWindow(QMainWindow):
 	def __init__(self):
 		super(self.__class__, self).__init__()
+		if configs == None :
+			QMessageBox.information(self,"錯誤","參數檔讀取失敗,中止程式 !!", QMessageBox.Ok ,QMessageBox.Ok)
+			sys.exit()
 		self.setWindowTitle("報表產出")
-		self.statusBar().showMessage('Reday')
+		self.statusBar().showMessage('Ready')
 		self.cwd = os.getcwd()
 		menubar = self.menuBar()
 		menubar.setNativeMenuBar(False)
@@ -177,6 +181,7 @@ class MainWindow(QMainWindow):
 		#self.resize(640, 250) #若要可變視窗大小
 		self.center()
 		self.show()
+
 	
 	def click_changepath(self,Path):
 		self.statusBar().showMessage('Reday')
@@ -239,10 +244,10 @@ class MainWindow(QMainWindow):
 	def setupUi(self):
 		central_widget = QWidget()
 		label_path = QLabel()
-		label_path.setText("存檔路徑")
+		label_path.setText('存檔路徑')
 		label_path.setFont(QFont('SansSerif', 12))
 		label_temp_path = QLabel()
-		label_temp_path.setText("範本路徑")
+		label_temp_path.setText('範本位置')
 		label_temp_path.setFont(QFont('SansSerif', 12))
 		label_device = QLabel()
 		label_device.setText("機種:")
@@ -253,11 +258,11 @@ class MainWindow(QMainWindow):
 		self.lineedit_path = QLineEdit()
 		self.lineedit_path.setFont(QFont('SansSerif', 14))
 		self.lineedit_path.setFixedWidth(400)
-		self.lineedit_path.setText(self.cwd)
+		self.lineedit_path.setText(save_to)
 		self.lineedit_temp_path = QLineEdit()
 		self.lineedit_temp_path.setFont(QFont('SansSerif', 14))
 		self.lineedit_temp_path.setFixedWidth(400)
-		self.lineedit_temp_path.setText(os.path.join(self.cwd,'template-XR.xlsx'))
+		self.lineedit_temp_path.setText(templated_file)
 		button_path = QPushButton('變更', self)
 		button_path.setFont(QFont('SansSerif', 14))
 		button_path.clicked.connect(lambda:self.click_changepath(self.lineedit_path.text()))
@@ -268,7 +273,7 @@ class MainWindow(QMainWindow):
 		self.ComboBox_device.setFont(QFont('SansSerif', 12))
 		self.ComboBox_item = QComboBox(self)
 		self.ComboBox_item.setFont(QFont('SansSerif', 12))
-		conn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER=192.168.1.4;DATABASE=ate;UID=sa;PWD=yds6f')
+		conn = pyodbc.connect('DRIVER='+driver+';SERVER='+host+';DATABASE='+db+';UID='+user+';PWD='+password)
 		c = conn.cursor()
 		qry = 'SELECT DISTINCT device FROM LotTitle ORDER BY device'
 		c.execute(qry)
@@ -334,5 +339,17 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
 	app = QApplication(sys.argv)
+	configs = ateconfig_default.configs
+	try:
+		driver = configs['db']['driver']
+		host = configs['db']['host']
+		user = configs['db']['user']
+		password = configs['db']['password']
+		db = configs['db']['database']
+		save_to = configs['export']['save_to']
+		templated_file = configs['export']['template']
+	except:
+		configs = None
+
 	MainWindow = MainWindow()
 	sys.exit(app.exec_())
